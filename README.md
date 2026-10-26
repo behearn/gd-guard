@@ -4,10 +4,6 @@ Opinionated linter for GDScript.
 
 Copy `addons/gd-guard` into a project and enable it under **Project > Project Settings > Plugins**. It checks a script on save, and the whole project from **Project > Tools > gd-guard: Scan Project**. Scripts in `res://addons/` are skipped.
 
-```
-res://scripts/class_2.gd:4 - gd-guard - class_name omitted
-```
-
 ## Private members stay in their script
 
 By convention a leading `_` means private. Reading or writing `_` members on another object is a warning. The same script may use them, including through `self` and `super`.
