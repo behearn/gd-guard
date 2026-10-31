@@ -72,6 +72,23 @@ func _ready() -> void:
 
 `Node tree access by $ instead of %`
 
+## Variables and functions use snake_case
+
+A `var`, `func`, parameter, `for` loop variable, or property `set` parameter must not contain an uppercase letter. `class_name`, constants, enums, signals, and types are left alone.
+
+```gdscript
+var player_health := 1
+
+func take_damage(amount: int) -> void:
+    for index in amount:
+        pass
+
+var playerHealth := 1 # invalid
+func takeDamage() -> void: # invalid
+```
+
+`var or func name is not snake_case`
+
 ## AI disclaimer
 
 gd-guard was written by an AI to check scripts written by hand.

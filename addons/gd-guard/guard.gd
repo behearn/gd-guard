@@ -5,6 +5,7 @@ extends RefCounted
 const MESSAGE_PRIVATE := "_ prefixed var or func accessed publicly"
 const MESSAGE_CLASS_NAME := "class_name omitted"
 const MESSAGE_ONREADY := "Node tree access by $ instead of %"
+const MESSAGE_SNAKE_CASE := "var or func name is not snake_case"
 
 enum Kind {
 	NEWLINE,
@@ -22,6 +23,8 @@ enum Kind {
 	COMMENT,
 	SEMICOLON,
 	EQUALS,
+	COMMA,
+	COLON,
 }
 
 static func scan(source: String) -> Array[Dictionary]:
@@ -30,6 +33,7 @@ static func scan(source: String) -> Array[Dictionary]:
 	_find_private(tokens, findings)
 	_find_class_name(tokens, findings)
 	_find_onready(tokens, findings)
+	_find_snake_case(tokens, findings)
 	findings.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		var line_a := int(a["line"])
 		var line_b := int(b["line"])
@@ -189,6 +193,132 @@ static func _skip_comments(tokens: Array[Dictionary], index: int, step: int) -> 
 	return cursor
 
 
+static func _find_snake_case(tokens: Array[Dictionary], findings: Array[Dictionary]) -> void:
+	for index in tokens.size():
+		if int(tokens[index]["kind"]) != Kind.IDENT:
+			continue
+		var prev := _skip_comments(tokens, index - 1, -1)
+		if prev >= 0 and int(tokens[prev]["kind"]) == Kind.DOT:
+			continue
+		var text := String(tokens[index]["text"])
+		if text == "var" or text == "for":
+			_warn_decl_name(tokens, index, findings)
+		elif text == "func":
+			_warn_func(tokens, index, findings)
+		elif text == "set":
+			_warn_setter(tokens, index, findings)
+
+
+static func _warn_decl_name(tokens: Array[Dictionary], keyword_index: int, findings: Array[Dictionary]) -> void:
+	var name := _next_ident(tokens, keyword_index)
+	if name.is_empty():
+		return
+	_warn_unless_snake(name, findings)
+
+
+static func _warn_func(tokens: Array[Dictionary], keyword_index: int, findings: Array[Dictionary]) -> void:
+	var cursor := keyword_index + 1
+	while cursor < tokens.size() and int(tokens[cursor]["kind"]) == Kind.COMMENT:
+		cursor += 1
+	if cursor >= tokens.size():
+		return
+	if int(tokens[cursor]["kind"]) == Kind.IDENT:
+		_warn_unless_snake(tokens[cursor], findings)
+		cursor += 1
+		while cursor < tokens.size() and int(tokens[cursor]["kind"]) == Kind.COMMENT:
+			cursor += 1
+	if cursor < tokens.size() and int(tokens[cursor]["kind"]) == Kind.LPAREN:
+		for name in _param_names(tokens, cursor):
+			_warn_unless_snake(name, findings)
+
+
+static func _warn_setter(tokens: Array[Dictionary], keyword_index: int, findings: Array[Dictionary]) -> void:
+	var prev := _skip_comments(tokens, keyword_index - 1, -1)
+	if prev >= 0 and int(tokens[prev]["kind"]) == Kind.IDENT and String(tokens[prev]["text"]) == "func":
+		return
+	var cursor := keyword_index + 1
+	while cursor < tokens.size() and int(tokens[cursor]["kind"]) == Kind.COMMENT:
+		cursor += 1
+	if cursor >= tokens.size() or int(tokens[cursor]["kind"]) != Kind.LPAREN:
+		return
+	var names := _param_names(tokens, cursor)
+	var after := _after_group(tokens, cursor)
+	while after < tokens.size():
+		var kind := int(tokens[after]["kind"])
+		if kind != Kind.COMMENT and kind != Kind.NEWLINE:
+			break
+		after += 1
+	if after >= tokens.size() or int(tokens[after]["kind"]) != Kind.COLON:
+		return
+	for name in names:
+		_warn_unless_snake(name, findings)
+
+
+static func _next_ident(tokens: Array[Dictionary], keyword_index: int) -> Dictionary:
+	var cursor := keyword_index + 1
+	while cursor < tokens.size() and int(tokens[cursor]["kind"]) == Kind.COMMENT:
+		cursor += 1
+	if cursor < tokens.size() and int(tokens[cursor]["kind"]) == Kind.IDENT:
+		return tokens[cursor]
+	return {}
+
+
+static func _param_names(tokens: Array[Dictionary], lparen_index: int) -> Array[Dictionary]:
+	var names: Array[Dictionary] = []
+	var depth := 0
+	var expect_name := true
+	var index := lparen_index
+	while index < tokens.size():
+		var kind := int(tokens[index]["kind"])
+		if kind == Kind.COMMENT or kind == Kind.NEWLINE:
+			index += 1
+			continue
+		if kind == Kind.LPAREN or kind == Kind.LBRACKET or kind == Kind.LBRACE:
+			depth += 1
+			index += 1
+			continue
+		if kind == Kind.RPAREN or kind == Kind.RBRACKET or kind == Kind.RBRACE:
+			depth -= 1
+			if depth == 0:
+				return names
+			index += 1
+			continue
+		if depth == 1:
+			if kind == Kind.COMMA:
+				expect_name = true
+			elif kind == Kind.COLON or kind == Kind.EQUALS:
+				expect_name = false
+			elif kind == Kind.IDENT and expect_name:
+				names.append(tokens[index])
+				expect_name = false
+		index += 1
+	return names
+
+
+static func _after_group(tokens: Array[Dictionary], open_index: int) -> int:
+	var depth := 0
+	var index := open_index
+	while index < tokens.size():
+		var kind := int(tokens[index]["kind"])
+		if kind == Kind.LPAREN or kind == Kind.LBRACKET or kind == Kind.LBRACE:
+			depth += 1
+		elif kind == Kind.RPAREN or kind == Kind.RBRACKET or kind == Kind.RBRACE:
+			depth -= 1
+			if depth == 0:
+				return index + 1
+		index += 1
+	return index
+
+
+static func _warn_unless_snake(token: Dictionary, findings: Array[Dictionary]) -> void:
+	var name := String(token["text"])
+	for index in name.length():
+		var code := name.unicode_at(index)
+		if code >= 65 and code <= 90:
+			_add(findings, int(token["line"]), MESSAGE_SNAKE_CASE)
+			return
+
+
 static func _tokenize(source: String) -> Array[Dictionary]:
 	var tokens: Array[Dictionary] = []
 	var index := 0
@@ -286,6 +416,10 @@ static func _tokenize(source: String) -> Array[Dictionary]:
 			_push(tokens, Kind.AT, line)
 		elif code == 59:
 			_push(tokens, Kind.SEMICOLON, line)
+		elif code == 44:
+			_push(tokens, Kind.COMMA, line)
+		elif code == 58:
+			_push(tokens, Kind.COLON, line)
 		index += 1
 	return tokens
 

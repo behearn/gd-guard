@@ -46,6 +46,7 @@ func _scan_project() -> void:
 		push_error("gd-guard: editor filesystem is not available")
 		return
 	_scan_directory(root)
+	print("gd-guard: Scan Complete")
 
 
 func _scan_directory(directory: EditorFileSystemDirectory) -> void:

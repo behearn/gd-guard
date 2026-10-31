@@ -236,6 +236,112 @@ func _run() -> PackedStringArray:
 		{"line": 2, "message": Guard.MESSAGE_ONREADY},
 		{"line": 4, "message": Guard.MESSAGE_PRIVATE},
 	])
+	_check(failures, "camelCase and PascalCase names", _fixture("""
+		class_name Foo
+		var playerHealth := 1
+		var PlayerHealth := 2
+		var HEALTH := 3
+		static var player_Health := 4
+		func takeDamage(playerHealth: int) -> void:
+			for playerIndex in playerHealth:
+				pass
+		func TakeDamage() -> void:
+			pass
+		func _takeDamage() -> void:
+			pass
+		class Inner:
+			var playerHealth := 1
+	"""), [
+		{"line": 2, "message": Guard.MESSAGE_SNAKE_CASE},
+		{"line": 3, "message": Guard.MESSAGE_SNAKE_CASE},
+		{"line": 4, "message": Guard.MESSAGE_SNAKE_CASE},
+		{"line": 5, "message": Guard.MESSAGE_SNAKE_CASE},
+		{"line": 6, "message": Guard.MESSAGE_SNAKE_CASE},
+		{"line": 6, "message": Guard.MESSAGE_SNAKE_CASE},
+		{"line": 7, "message": Guard.MESSAGE_SNAKE_CASE},
+		{"line": 9, "message": Guard.MESSAGE_SNAKE_CASE},
+		{"line": 11, "message": Guard.MESSAGE_SNAKE_CASE},
+		{"line": 14, "message": Guard.MESSAGE_SNAKE_CASE},
+	])
+	_check(failures, "multiline parameters", _fixture("""
+		class_name Foo
+		func take_damage(
+			playerHealth: int,
+			otherName: String = "x",
+		) -> void:
+			pass
+	"""), [
+		{"line": 3, "message": Guard.MESSAGE_SNAKE_CASE},
+		{"line": 4, "message": Guard.MESSAGE_SNAKE_CASE},
+	])
+	_check(failures, "setter parameter", _fixture("""
+		class_name Foo
+		var health:
+			set(newValue):
+				health = newValue
+	"""), [
+		{"line": 3, "message": Guard.MESSAGE_SNAKE_CASE},
+	])
+	_check(failures, "lambda parameter", _fixture("""
+		class_name Foo
+		func _ready() -> void:
+			items.map(func(playerHealth): return playerHealth)
+	"""), [
+		{"line": 3, "message": Guard.MESSAGE_SNAKE_CASE},
+	])
+	_check(failures, "lambda parameter in a default", _fixture("""
+		class_name Foo
+		func connect_handler(callback := func(playerHealth: int) -> void:
+			pass
+		) -> void:
+			pass
+	"""), [
+		{"line": 2, "message": Guard.MESSAGE_SNAKE_CASE},
+	])
+	_check(failures, "func named set warns once", _fixture("""
+		class_name Foo
+		func set(newValue: int) -> void:
+			pass
+	"""), [
+		{"line": 2, "message": Guard.MESSAGE_SNAKE_CASE},
+	])
+	_check(failures, "continued var name", _fixture("""
+		class_name Foo
+		var \\
+			playerHealth := 1
+	"""), [
+		{"line": 3, "message": Guard.MESSAGE_SNAKE_CASE},
+	])
+	_check(failures, "snake_case names stay quiet", _fixture("""
+		class_name Player
+		const MaxHealth := 10
+		signal healthChanged(newHealth: int)
+		enum State { Idle, Running }
+		var _player_health: Node2D = %MySprite
+		func take_damage(node: Node2D, items: Array[Item], data: Dictionary[String, int] = {}, other: Foo.Bar = null) -> Sprite2D:
+			for index in items:
+				node.set(newValue)
+			var _unused := 1
+		var health:
+			set(new_value):
+				health = new_value
+	"""), [])
+	_check(failures, "strings and comments hide camelCase", _fixture("""
+		class_name Foo
+		func _ready() -> void:
+			print("var playerHealth")
+			print("func takeDamage")
+		# var playerHealth
+		# func takeDamage():
+	"""), [])
+	_check(failures, "onready dollar and camelCase var", _fixture("""
+		class_name Foo
+		extends Node
+		@onready var playerHealth: Sprite2D = $Parent/MySprite
+	"""), [
+		{"line": 3, "message": Guard.MESSAGE_ONREADY},
+		{"line": 3, "message": Guard.MESSAGE_SNAKE_CASE},
+	])
 	return failures
 
 
@@ -246,6 +352,8 @@ func _expect_messages(failures: PackedStringArray) -> void:
 		failures.append("class_name message mismatch")
 	if Guard.MESSAGE_ONREADY != "Node tree access by $ instead of %":
 		failures.append("onready message mismatch")
+	if Guard.MESSAGE_SNAKE_CASE != "var or func name is not snake_case":
+		failures.append("snake_case message mismatch")
 
 
 func _expect_format(failures: PackedStringArray) -> void:
