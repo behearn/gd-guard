@@ -1,7 +1,7 @@
 #class_name ignore
 extends SceneTree
 
-const Guard := preload("res://addons/gd-guard/guard.gd")
+const Guard := preload("res://addons/gd_guard/guard.gd")
 
 
 func _init() -> void:

@@ -2,7 +2,7 @@
 
 Opinionated linter for GDScript.
 
-Copy `addons/gd-guard` into a project and enable it under **Project > Project Settings > Plugins**. It checks a script on save, and the whole project from **Project > Tools > gd-guard: Scan Project**. Scripts in `res://addons/` are skipped.
+Copy `addons/gd_guard` into a project and enable it under **Project > Project Settings > Plugins**. It checks a script on save, and the whole project from **Project > Tools > gd-guard: Scan Project**. Scripts in `res://addons/` are skipped.
 
 ## Private members stay in their script
 

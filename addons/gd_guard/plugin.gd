@@ -1,7 +1,7 @@
 @tool
 extends EditorPlugin
 
-const Guard := preload("res://addons/gd-guard/guard.gd")
+const Guard := preload("res://addons/gd_guard/guard.gd")
 const _SCAN_ITEM := "gd-guard: Scan Project"
 
 var _menu_added := false

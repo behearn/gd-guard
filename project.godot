@@ -11,9 +11,9 @@ config_version=5
 [application]
 
 config/name="gd-guard"
-config/description="GDScript convention checks for the Godot editor."
+config/description="An opinionated gdscript linter"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gd-guard/plugin.cfg")
+enabled=PackedStringArray("res://addons/gd_guard/plugin.cfg")
